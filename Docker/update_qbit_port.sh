@@ -5,13 +5,15 @@
 # */5 * * * * /bin/sh /path/to/update_qbit_port.sh
 # For synology users, run the script as root via the task scheduler every 5 minutes.
 
-QBITTORRENT_USER=            # qbittorrent username
-QBITTORRENT_PASS=            # qbittorrent password
 QBITTORRENT_PORT=
 QBITTORRENT_SERVER=          # usually localhost if running all containers on the same machine
+QBITTORRENT_USER=            # qbittorrent username
+QBITTORRENT_PASS=            # qbittorrent password
 
 GLUETUN_SERVER=              # usually localhost if running all containers on the same machine
-GLUETUN_PORT=                # Gluetun exposed port
+GLUETUN_PORT=                # API server
+GLUETUN_AUTH_USER=           # API auth username
+GLUETUN_AUTH_PASS=           # API auth password
 
 VPN_CT_NAME=                 # Gluetun container name
 
@@ -24,11 +26,11 @@ findconfiguredport() {
 }
 
 findactiveport() {
-    curl -s -i "http://${GLUETUN_SERVER}:${GLUETUN_PORT}/v1/openvpn/portforwarded" | grep -oP '(?<=\"port\"\:)(\d{1,5})'
+    curl -u ${GLUETUN_AUTH_USER}:${GLUETUN_AUTH_PASS} -s -i "http://${GLUETUN_SERVER}:${GLUETUN_PORT}/v1/portforward" | grep -oP '(?<=\"port\"\:)(\d{1,5})'
 }
 
 getpublicip() {
-    curl -s -i "http://${GLUETUN_SERVER}:${GLUETUN_PORT}/v1/publicip/ip" | grep -oP '(?<="public_ip":.)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
+    curl -u ${GLUETUN_AUTH_USER}:${GLUETUN_AUTH_PASS} -s -i "http://${GLUETUN_SERVER}:${GLUETUN_PORT}/v1/publicip/ip" | grep -oP '(?<="public_ip":.)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
 }
 
 qbt_login() {
@@ -72,7 +74,7 @@ get_portmap() {
     # Get Public IP
     public_ip=$(getpublicip)
     if [ -z "$public_ip" ]; then
-      echo "$(timestamp) | Error: Unable to get public IP"
+      echo "$(timestamp) | Error: Unable to get public IP from Gluetun"
       echo "$(timestamp) | Attempted ip: ${GLUETUN_SERVER}. Port ${GLUETUN_PORT}"
       exit 1
     fi
